@@ -1,11 +1,160 @@
 <!DOCTYPE html>
 <html>
-  <head>
-    <title>Todo</title>
-  </head>
-  <body>
-    <h1>My Todo List</h1>
-    <input type="text" placeholder="Add task">
-    <button>Add</button>
-  </body>
+<head>
+<title>Todo List</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: sans-serif; background: #f5f5f5; color: #111; padding: 2rem; }
+  .container { max-width: 560px; margin: 0 auto; }
+  h1 { font-size: 22px; font-weight: 500; margin-bottom: 1.5rem; }
+  .input-row { display: flex; gap: 8px; margin-bottom: 1rem; flex-wrap: wrap; }
+  input[type="text"] { flex: 1; min-width: 160px; padding: 8px 12px; border: 1px solid #ccc; border-radius: 8px; font-size: 14px; }
+  select, input[type="date"] { padding: 8px 10px; border: 1px solid #ccc; border-radius: 8px; font-size: 14px; background: #fff; }
+  input[type="date"] { width: 140px; }
+  select { width: 110px; }
+  button.add-btn { padding: 8px 18px; border: 1px solid #111; border-radius: 8px; background: #111; color: #fff; font-size: 14px; cursor: pointer; }
+  button.add-btn:hover { background: #333; }
+  .filters { display: flex; gap: 6px; margin-bottom: 1rem; flex-wrap: wrap; align-items: center; }
+  .filter-btn { padding: 4px 12px; border: 1px solid #ccc; border-radius: 99px; font-size: 13px; background: #fff; cursor: pointer; }
+  .filter-btn.active { background: #111; color: #fff; border-color: #111; }
+  .counter { margin-left: auto; font-size: 13px; color: #888; }
+  .task-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid #e0e0e0; border-radius: 8px; margin-bottom: 6px; background: #fff; }
+  .task-item.done { opacity: 0.5; }
+  .task-item.done .task-text { text-decoration: line-through; }
+  .task-text { flex: 1; font-size: 14px; }
+  .badge { font-size: 11px; padding: 2px 8px; border-radius: 99px; font-weight: 500; }
+  .badge.high { background: #FCEBEB; color: #A32D2D; }
+  .badge.medium { background: #FAEEDA; color: #854F0B; }
+  .badge.low { background: #EAF3DE; color: #3B6D11; }
+  .due { font-size: 12px; color: #888; }
+  .due.overdue { color: #A32D2D; }
+  .del-btn { font-size: 18px; color: #aaa; background: none; border: none; cursor: pointer; padding: 0 4px; line-height: 1; }
+  .del-btn:hover { color: #111; }
+  .empty { text-align: center; padding: 2rem; font-size: 14px; color: #888; }
+  .footer { display: flex; justify-content: flex-end; margin-top: 1rem; }
+  .clear-btn { font-size: 13px; padding: 4px 12px; border: 1px solid #ccc; border-radius: 8px; background: #fff; cursor: pointer; color: #888; }
+  .clear-btn:hover { color: #111; border-color: #999; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>My Todo List</h1>
+
+  <div class="input-row">
+    <input type="text" id="taskInput" placeholder="Add a new task..." onkeydown="if(event.key==='Enter')addTask()" />
+    <select id="prioritySelect">
+      <option value="low">Low</option>
+      <option value="medium" selected>Medium</option>
+      <option value="high">High</option>
+    </select>
+    <input type="date" id="dueInput" />
+    <button class="add-btn" onclick="addTask()">Add</button>
+  </div>
+
+  <div class="filters">
+    <button class="filter-btn active" id="f-all" onclick="setFilter('all')">All</button>
+    <button class="filter-btn" id="f-active" onclick="setFilter('active')">Active</button>
+    <button class="filter-btn" id="f-done" onclick="setFilter('done')">Done</button>
+    <button class="filter-btn" id="f-high" onclick="setFilter('high')">High priority</button>
+    <span class="counter" id="counter"></span>
+  </div>
+
+  <div id="taskList"></div>
+
+  <div class="footer">
+    <button class="clear-btn" onclick="clearDone()">Clear completed</button>
+  </div>
+</div>
+
+<script>
+  let tasks = [
+    { id: 1, text: 'Review project proposal', priority: 'high', due: '', done: false },
+    { id: 2, text: 'Buy groceries', priority: 'medium', due: '', done: false },
+    { id: 3, text: 'Read for 30 minutes', priority: 'low', due: '', done: true },
+  ];
+  let filter = 'all';
+  let nextId = 4;
+
+  function setFilter(f) {
+    filter = f;
+    ['all', 'active', 'done', 'high'].forEach(k => {
+      document.getElementById('f-' + k).classList.toggle('active', k === f);
+    });
+    render();
+  }
+
+  function addTask() {
+    const input = document.getElementById('taskInput');
+    const text = input.value.trim();
+    if (!text) return;
+    tasks.unshift({
+      id: nextId++,
+      text,
+      priority: document.getElementById('prioritySelect').value,
+      due: document.getElementById('dueInput').value,
+      done: false
+    });
+    input.value = '';
+    document.getElementById('dueInput').value = '';
+    render();
+  }
+
+  function toggle(id) {
+    const t = tasks.find(t => t.id === id);
+    if (t) t.done = !t.done;
+    render();
+  }
+
+  function del(id) {
+    tasks = tasks.filter(t => t.id !== id);
+    render();
+  }
+
+  function clearDone() {
+    tasks = tasks.filter(t => !t.done);
+    render();
+  }
+
+  function formatDue(due) {
+    if (!due) return null;
+    const d = new Date(due + 'T00:00:00');
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const diff = Math.round((d - today) / (1000 * 60 * 60 * 24));
+    if (diff < 0) return { label: 'Overdue', overdue: true };
+    if (diff === 0) return { label: 'Today', overdue: false };
+    if (diff === 1) return { label: 'Tomorrow', overdue: false };
+    return { label: d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }), overdue: false };
+  }
+
+  function render() {
+    let visible = tasks.filter(t => {
+      if (filter === 'active') return !t.done;
+      if (filter === 'done') return t.done;
+      if (filter === 'high') return t.priority === 'high' && !t.done;
+      return true;
+    });
+
+    document.getElementById('counter').textContent = tasks.filter(t => !t.done).length + ' remaining';
+
+    const list = document.getElementById('taskList');
+    if (!visible.length) {
+      list.innerHTML = '<div class="empty">No tasks here</div>';
+      return;
+    }
+
+    list.innerHTML = visible.map(t => {
+      const due = t.due ? formatDue(t.due) : null;
+      return `<div class="task-item${t.done ? ' done' : ''}">
+        <input type="checkbox" ${t.done ? 'checked' : ''} onchange="toggle(${t.id})" style="width:16px;height:16px;cursor:pointer;flex-shrink:0;" />
+        <span class="task-text">${t.text}</span>
+        ${due ? `<span class="due${due.overdue ? ' overdue' : ''}">${due.label}</span>` : ''}
+        <span class="badge ${t.priority}">${t.priority}</span>
+        <button class="del-btn" onclick="del(${t.id})" title="Delete">×</button>
+      </div>`;
+    }).join('');
+  }
+
+  render();
+</script>
+</body>
 </html>
